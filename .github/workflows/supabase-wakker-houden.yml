@@ -1,0 +1,35 @@
+name: Supabase wakker houden
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wakker-houden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Databank even aanspreken
+        run: |
+          URL=$(grep -o 'SUPABASE_URL = "[^"]*"' index.html | cut -d'"' -f2)
+          KEY=$(grep -o 'SUPABASE_KEY = "[^"]*"' index.html | cut -d'"' -f2)
+          curl -sS --fail -X POST "$URL/rest/v1/rpc/wl_list" \
+            -H "apikey: $KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"p_family":"wakker-houden-0000"}' -o /dev/null
+          echo "Supabase is aangesproken."
+
+      - name: Repository actief houden
+        run: |
+          DAGEN=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          if [ "$DAGEN" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Wakker houden"
+            git push
+          fi
